@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import io 
 # --- PERBAIKAN IMPORT TERBARU ---
-from pyNmonAnalyzer import NMONParser # <--- KOREKSI IMPORT DI SINI (Opsi 1)
+from nmon_parser import NMONParser
 # --------------------------------
 
 st.set_page_config(layout="wide")

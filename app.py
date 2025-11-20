@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
 import io 
-from pynmonanalyzer import nmonParser # <--- IMPORT BARU
+# --- PERBAIKAN IMPORT ---
+from pyNmonAnalyzer.nmonparser import NMONParser # <--- KOREKSI IMPORT DI SINI
+# ------------------------
 
 st.set_page_config(layout="wide")
 
@@ -13,11 +15,11 @@ st.markdown('---')
 def load_and_parse_nmon(uploaded_file_obj):
     """Mengambil objek file NMON dari Streamlit, mem-parsingnya, dan mengembalikan DataFrames."""
     try:
-        # Mengkonversi objek BytesIO Streamlit ke string yang bisa dibaca oleh nmonParser
+        # Mengkonversi objek BytesIO Streamlit ke string yang bisa dibaca oleh NMONParser
         nmon_data_string = io.StringIO(uploaded_file_obj.getvalue().decode("utf-8"))
         
         # Inisialisasi dan parsing
-        parser = nmonParser.NMONParser(nmon_data_string)
+        parser = NMONParser(nmon_data_string) # <--- PERBAIKAN PEMANGGILAN KELAS (NMONParser, bukan nmonParser.NMONParser)
         parsed_data = parser.parse()
         
         # Mengembalikan dictionary of DataFrames (misalnya, 'CPU_ALL', 'MEM', 'DISKREAD')

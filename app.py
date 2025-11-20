@@ -1,16 +1,16 @@
 import streamlit as st
 import pandas as pd
 import io 
-# --- PERBAIKAN IMPORT ---
-from pyNmonAnalyzer.nmonparser import NMONParser as nmonParser
-# ------------------------
+# --- PERBAIKAN IMPORT TERBARU ---
+from pyNmonAnalyzer import NMONParser # <--- KOREKSI IMPORT DI SINI (Opsi 1)
+# --------------------------------
 
 st.set_page_config(layout="wide")
 
 st.title('NMON Data Visualizer dengan Streamlit')
 st.markdown('---')
 
-# --- Fungsi Parsing NMON (BARU) ---
+# --- Fungsi Parsing NMON ---
 @st.cache_data
 def load_and_parse_nmon(uploaded_file_obj):
     """Mengambil objek file NMON dari Streamlit, mem-parsingnya, dan mengembalikan DataFrames."""
@@ -19,7 +19,7 @@ def load_and_parse_nmon(uploaded_file_obj):
         nmon_data_string = io.StringIO(uploaded_file_obj.getvalue().decode("utf-8"))
         
         # Inisialisasi dan parsing
-        parser = NMONParser(nmon_data_string) # <--- PERBAIKAN PEMANGGILAN KELAS (NMONParser, bukan nmonParser.NMONParser)
+        parser = NMONParser(nmon_data_string) # Memanggil kelas NMONParser yang baru diimpor
         parsed_data = parser.parse()
         
         # Mengembalikan dictionary of DataFrames (misalnya, 'CPU_ALL', 'MEM', 'DISKREAD')
@@ -41,7 +41,7 @@ if uploaded_file is not None:
         if uploaded_file.name.endswith('.csv'):
             # Membaca data CSV dengan header inferensi
             df_main = pd.read_csv(uploaded_file)
-            data_frames['Main Data'] = df_main # Simpan sebagai satu DataFrame
+            data_frames['Main Data'] = df_main 
             st.success("File CSV berhasil dimuat!")
         
         elif uploaded_file.name.endswith('.nmon'):
@@ -54,7 +54,7 @@ if uploaded_file is not None:
                 data_frames = parsed_results # Simpan hasil parsing (dictionary of DFs)
                 st.success(f"File NMON berhasil diproses! Ditemukan {len(data_frames)} metrik.")
             else:
-                st.stop() # Hentikan jika parsing gagal dan sudah ada error message
+                st.stop()
         
         
         # --- LANJUTKAN DENGAN PEMILIHAN DATA ---

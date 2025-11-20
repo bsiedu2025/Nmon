@@ -21,8 +21,8 @@ if uploaded_file is not None:
         
         elif uploaded_file.name.endswith('.nmon'):
             st.warning("File .nmon membutuhkan implementasi parser (mis. pyNmonAnalyzer) untuk diubah menjadi DataFrame. Memuat CSV yang sudah diolah disarankan.")
-            # Di sini Anda akan memanggil fungsi parser NMON Anda.
-            return
+            # **PERBAIKAN:** Mengganti 'return' dengan 'st.stop()'
+            st.stop() 
             
         # --- Sidebar untuk Seleksi Metrik ---
         st.sidebar.header("Pengaturan Visualisasi")

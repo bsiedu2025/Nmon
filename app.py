@@ -1,56 +1,111 @@
 import streamlit as st
 import pandas as pd
-# Anda mungkin perlu pustaka tambahan seperti plotly atau pynmonanalyzer
+import io 
+from pynmonanalyzer import nmonParser # <--- IMPORT BARU
 
 st.set_page_config(layout="wide")
 
 st.title('NMON Data Visualizer dengan Streamlit')
 st.markdown('---')
 
+# --- Fungsi Parsing NMON (BARU) ---
+@st.cache_data
+def load_and_parse_nmon(uploaded_file_obj):
+    """Mengambil objek file NMON dari Streamlit, mem-parsingnya, dan mengembalikan DataFrames."""
+    try:
+        # Mengkonversi objek BytesIO Streamlit ke string yang bisa dibaca oleh nmonParser
+        nmon_data_string = io.StringIO(uploaded_file_obj.getvalue().decode("utf-8"))
+        
+        # Inisialisasi dan parsing
+        parser = nmonParser.NMONParser(nmon_data_string)
+        parsed_data = parser.parse()
+        
+        # Mengembalikan dictionary of DataFrames (misalnya, 'CPU_ALL', 'MEM', 'DISKREAD')
+        return parsed_data
+    except Exception as e:
+        st.error(f"Gagal memproses file NMON: {e}")
+        return None
+# -----------------------------------
+
 st.header('Unggah File NMON/CSV')
 uploaded_file = st.file_uploader("Unggah file NMON (.nmon) atau CSV (.csv)", type=["nmon", "csv"])
 
 if uploaded_file is not None:
+    
+    # Variabel untuk menampung DataFrames
+    data_frames = {} 
+    
     try:
-        # PENTING: Untuk file .nmon, Anda perlu fungsi parsing khusus.
-        # Sebagai contoh sederhana, kita asumsikan data sudah diubah ke CSV.
         if uploaded_file.name.endswith('.csv'):
             # Membaca data CSV dengan header inferensi
-            df = pd.read_csv(uploaded_file)
+            df_main = pd.read_csv(uploaded_file)
+            data_frames['Main Data'] = df_main # Simpan sebagai satu DataFrame
             st.success("File CSV berhasil dimuat!")
         
         elif uploaded_file.name.endswith('.nmon'):
-            st.warning("File .nmon membutuhkan implementasi parser (mis. pyNmonAnalyzer) untuk diubah menjadi DataFrame. Memuat CSV yang sudah diolah disarankan.")
-            # **PERBAIKAN:** Mengganti 'return' dengan 'st.stop()'
-            st.stop() 
+            st.info("Memproses file NMON... Harap tunggu.")
             
-        # --- Sidebar untuk Seleksi Metrik ---
-        st.sidebar.header("Pengaturan Visualisasi")
+            # Panggil fungsi parsing
+            parsed_results = load_and_parse_nmon(uploaded_file)
+            
+            if parsed_results is not None:
+                data_frames = parsed_results # Simpan hasil parsing (dictionary of DFs)
+                st.success(f"File NMON berhasil diproses! Ditemukan {len(data_frames)} metrik.")
+            else:
+                st.stop() # Hentikan jika parsing gagal dan sudah ada error message
         
-        # Contoh sederhana: mencari kolom yang mengandung 'CPU' atau 'MEM'
-        available_columns = df.columns.tolist()
         
-        metric_selection = st.sidebar.multiselect(
-            'Pilih Metrik untuk Grafik',
-            available_columns,
-            default=[col for col in available_columns if 'CPU' in col or 'MEM' in col][:3]
+        # --- LANJUTKAN DENGAN PEMILIHAN DATA ---
+        
+        # Mendapatkan semua nama metrik (keys dari dictionary)
+        metric_names = list(data_frames.keys())
+        
+        if not metric_names:
+            st.error("Tidak ada data yang valid ditemukan untuk dianalisis.")
+            st.stop()
+
+        # 1. Pilih Metrik Utama (CPU, MEM, DISK, dll.) di sidebar
+        st.sidebar.header("1. Pilih Metrik Utama")
+        selected_metric_key = st.sidebar.selectbox(
+            'Pilih Kategori Metrik (Contoh: CPU_ALL, DISKREAD, MEM)',
+            metric_names
         )
 
-        # --- Tampilkan Visualisasi ---
-        if metric_selection:
-            st.subheader("Grafik Data Metrik")
+        # Ambil DataFrame yang dipilih
+        df_selected = data_frames.get(selected_metric_key)
+        
+        if df_selected is not None:
             
-            # Memastikan kolom yang dipilih ada
-            chart_data = df[[col for col in metric_selection if col in df.columns]]
+            # 2. Pilih Kolom Data di sidebar
+            st.sidebar.header("2. Pilih Kolom Data")
+            available_columns = df_selected.columns.tolist()
             
-            # Gunakan st.line_chart atau library lain (Plotly, Matplotlib) untuk grafik yang lebih canggih
-            st.line_chart(chart_data) 
+            # Hapus kolom waktu atau index untuk visualisasi data
+            time_cols = [col for col in available_columns if 'TIME' in col or 'Index' in col]
+            data_cols = [col for col in available_columns if col not in time_cols]
             
-            st.subheader("Data Mentah (DataFrame)")
-            st.dataframe(df)
+            metric_selection = st.sidebar.multiselect(
+                f'Pilih Kolom Data dari {selected_metric_key}',
+                data_cols,
+                default=data_cols[:3]
+            )
 
-        else:
-            st.info("Silakan pilih metrik dari panel samping.")
+            # --- Tampilkan Visualisasi ---
+            if metric_selection:
+                st.subheader(f"Visualisasi: {selected_metric_key} - {', '.join(metric_selection)}")
+                
+                # Buat DataFrame untuk charting (pastikan time index/kolom juga dimasukkan jika ada)
+                cols_to_chart = time_cols + metric_selection
+                chart_data = df_selected[cols_to_chart]
+                
+                # Gunakan st.line_chart atau library lain
+                st.line_chart(chart_data, x=time_cols[0] if time_cols else None) 
+                
+                st.subheader(f"Data Mentah: {selected_metric_key}")
+                st.dataframe(df_selected)
+
+            else:
+                st.info("Silakan pilih metrik data dari panel samping.")
 
     except Exception as e:
-        st.error(f"Terjadi kesalahan saat memproses file: {e}")
+        st.error(f"Terjadi kesalahan fatal saat memproses file: {e}")
